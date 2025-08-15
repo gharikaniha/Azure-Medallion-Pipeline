@@ -1,16 +1,40 @@
-storageAccountName = <storage account name>
-storageAccountAccessKey = <storage access key>
-sasToken = ""
-blobContainerName = <block container name>
-mountPoint = "/mnt/blobContainerName"
+# -----------------------------
+# User-specific Databricks mount
+# -----------------------------
+storageAccountName = "your_storage_account_name"      # Replace with your Azure Storage account name
+storageAccountAccessKey = ""                          # Fill your access key if using key
+sasToken = ""                                         # Fill SAS token if using SAS auth
+blobContainerName = "bronze-data"                     # Your container name
+mountPoint = "/mnt/bronze-data"                      # Mount path in Databricks
+
+# -----------------------------
+# Mount logic
+# -----------------------------
 if not any(mount.mountPoint == mountPoint for mount in dbutils.fs.mounts()):
-  try:
-    dbutils.fs.mount(
-      source = "wasbs://{}@{}.blob.core.windows.net".format(blobContainerName, storageAccountName),
-      mount_point = mountPoint,
-      extra_configs = {'fs.azure.account.key.' + storageAccountName + '.blob.core.windows.net': storageAccountAccessKey}
-      #extra_configs = {'fs.azure.sas.' + blobContainerName + '.' + storageAccountName + '.blob.core.windows.net': sasToken}
-    )
-    print("mount succeeded!")
-  except Exception as e:
-    print("mount exception", e)
+    try:
+        if storageAccountAccessKey:
+            # Mount using Access Key
+            dbutils.fs.mount(
+                source = f"wasbs://{blobContainerName}@{storageAccountName}.blob.core.windows.net",
+                mount_point = mountPoint,
+                extra_configs = {f"fs.azure.account.key.{storageAccountName}.blob.core.windows.net": storageAccountAccessKey}
+            )
+        elif sasToken:
+            # Mount using SAS Token
+            dbutils.fs.mount(
+                source = f"wasbs://{blobContainerName}@{storageAccountName}.blob.core.windows.net",
+                mount_point = mountPoint,
+                extra_configs = {f"fs.azure.sas.{blobContainerName}.{storageAccountName}.blob.core.windows.net": sasToken}
+            )
+        else:
+            raise ValueError("You must provide either storageAccountAccessKey or sasToken!")
+        print(f"Mount succeeded for Neeharika Gopina at {mountPoint}!")
+    except Exception as e:
+        print("Mount exception:", e)
+else:
+    print(f"{mountPoint} is already mounted.")
+
+# -----------------------------
+# Verify files
+# -----------------------------
+display(dbutils.fs.ls(mountPoint))
